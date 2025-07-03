@@ -373,13 +373,22 @@
     <div id="chatbotModal" class="chatbot-modal">
         <div class="chatbot-content">
             <span class="close" onclick="closeChatbot()">×</span>
-            <h2>Hi! I’m SyncMate, your inventory helper!</h2>
+            <h2>Hi! I’m SyncMate, here to help with your inventory.</h2>
             <div id="chatbotMessages"></div>
             <div class="chatbot-input" id="chatbotInput"></div>
         </div>
     </div>
     <script>
         let batchSize = 200;
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbx-fPZyjXfD2DfMAcJYjjPu6g5WrbsNXHHyH7MDturdL2ysjPKRTTMi2gzpnzQ6XcTXoQ/exec"; // 
+        let userBehavior = [];
+
+        // Track user behavior
+        function trackBehavior(eventType, details) {
+            userBehavior.push({ eventType, details, timestamp: new Date().toISOString() });
+            if (userBehavior.length > 10) userBehavior.shift(); // Limit to last 10 events
+            console.log("User Behavior:", userBehavior);
+        }
 
         function safetyStock(dailySales, leadTime, stdDev, zScore) {
             return zScore * stdDev * Math.sqrt(leadTime) || 0;
@@ -479,6 +488,7 @@
         }
 
         function calculate() {
+            trackBehavior("calculateClicked", { time: new Date().toISOString() });
             const errorDiv = document.getElementById('error');
             const resultsDiv = document.getElementById('results');
             errorDiv.textContent = '';
@@ -498,6 +508,7 @@
                     const processedData = await preprocessData(salesData, purchaseData);
                     if (!processedData || Object.keys(processedData).length === 0) throw new Error('No valid data to process.');
                     calculateResults(processedData);
+                    saveAggregatedData(processedData);
                 })
                 .catch(err => {
                     errorDiv.textContent = err.message;
@@ -505,6 +516,7 @@
         }
 
         function calculateResults(processedData) {
+            trackBehavior("resultsDisplayed", { items: Object.keys(processedData).length });
             const errorDiv = document.getElementById('error');
             const resultsDiv = document.getElementById('results');
             const storedData = { inputs: {}, outputs: {} };
@@ -512,19 +524,29 @@
             resultsDiv.innerHTML = '';
             resultsDiv.style.display = 'block';
 
+            const aggregatedData = [];
             for (const [stockId, data] of Object.entries(processedData)) {
                 const ss = safetyStock(data.daily_sales, data.lead_time, data.std_dev, data.service_reliability);
                 const rop = reorderPoint(data.daily_sales, data.lead_time, ss);
                 const orderQty = optimalOrderSize(data.daily_sales * data.annual_operating_days, data.order_cost, data.unit_cost * 0.25);
-                const decisionRules = [
-                    { condition: rop > orderQty * 1.2, message: `Increase your order size for ${data.product_name} to avoid frequent reordering.` },
-                    { condition: ss < data.daily_sales * 0.15, message: `Boost service reliability for ${data.product_name} as safety stock is low.` },
-                    { condition: orderQty < data.daily_sales * 1.5, message: `Check costs or demand for ${data.product_name} as order size seems small.` }
-                ];
-                const decision = decisionRules.find(rule => rule.condition)?.message || `You're on track with ${data.product_name}'s inventory!`;
 
                 storedData.inputs[stockId] = { ...data };
-                storedData.outputs[stockId] = { safetyStock: ss, reorderPoint: rop, optimalOrderSize: orderQty, decision };
+                storedData.outputs[stockId] = { safetyStock: ss, reorderPoint: rop, optimalOrderSize: orderQty };
+
+                aggregatedData.push({
+                    StockID: stockId,
+                    ProductName: data.product_name,
+                    DailySales: data.daily_sales,
+                    LeadTime: data.lead_time,
+                    ServiceReliability: data.service_reliability,
+                    AnnualOperatingDays: data.annual_operating_days,
+                    OrderCost: data.order_cost,
+                    UnitCost: data.unit_cost,
+                    StdDev: data.std_dev,
+                    SafetyStock: ss,
+                    ReorderPoint: rop,
+                    OptimalOrderSize: orderQty
+                });
 
                 const resultCard = document.createElement('div');
                 resultCard.className = 'result-card';
@@ -533,7 +555,6 @@
                     <p>For ${data.product_name}, keep a safety stock of ${ss.toFixed(2)} units to handle unexpected demand.</p>
                     <p>Plan to reorder ${data.product_name} when stock drops to ${rop.toFixed(2)} units to prevent shortages.</p>
                     <p>Order ${data.product_name} in batches of ${orderQty.toFixed(2)} units to keep costs low.</p>
-                    <p><strong>Smart Tip:</strong> ${decision}</p>
                 `;
 
                 const chartDiv = document.createElement('div');
@@ -561,19 +582,75 @@
             console.log('Stored Data for Training:', jsonData);
         }
 
+        function saveAggregatedData(processedData) {
+            const aggregatedData = [];
+            for (const [stockId, data] of Object.entries(processedData)) {
+                const ss = safetyStock(data.daily_sales, data.lead_time, data.std_dev, data.service_reliability);
+                const rop = reorderPoint(data.daily_sales, data.lead_time, ss);
+                const orderQty = optimalOrderSize(data.daily_sales * data.annual_operating_days, data.order_cost, data.unit_cost * 0.25);
+
+                aggregatedData.push({
+                    StockID: stockId,
+                    ProductName: data.product_name,
+                    DailySales: data.daily_sales,
+                    LeadTime: data.lead_time,
+                    ServiceReliability: data.service_reliability,
+                    AnnualOperatingDays: data.annual_operating_days,
+                    OrderCost: data.order_cost,
+                    UnitCost: data.unit_cost,
+                    StdDev: data.std_dev,
+                    SafetyStock: ss,
+                    ReorderPoint: rop,
+                    OptimalOrderSize: orderQty
+                });
+            }
+
+            fetch(scriptUrl + "?action=saveAggregatedData", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(aggregatedData)
+            })
+            .then(response => response.text())
+            .then(result => console.log(result))
+            .catch(error => console.error("Error saving aggregated data:", error));
+        }
+
         function openChatbot() {
+            trackBehavior("chatbotOpened", { time: new Date().toISOString() });
             document.getElementById('chatbotModal').style.display = 'flex';
             const messages = document.getElementById('chatbotMessages');
             const input = document.getElementById('chatbotInput');
-            messages.innerHTML = '<div class="chatbot-message">Hey! I’m SyncMate, here to help with your inventory. Did you find StockSync useful today?</div>';
+            messages.innerHTML = `
+                <div class="chatbot-message">Hey! I’m SyncMate, here to help with your inventory. Please enter your details to provide feedback.</div>
+                <div class="chatbot-message">
+                    <input type="text" id="userName" placeholder="Your Name" style="width: 100%; margin-bottom: 5px;">
+                    <input type="email" id="userEmail" placeholder="Your Email" style="width: 100%; margin-bottom: 5px;">
+                </div>
+            `;
+            input.innerHTML = `<button onclick="collectFeedback()">Submit Details</button>`;
+        }
+
+        function collectFeedback() {
+            const userName = document.getElementById('userName').value;
+            const userEmail = document.getElementById('userEmail').value;
+            if (!userName || !userEmail) {
+                alert("Please enter both name and email.");
+                return;
+            }
+
+            trackBehavior("feedbackStarted", { userName, userEmail });
+            const messages = document.getElementById('chatbotMessages');
+            messages.innerHTML += `<div class="chatbot-message">Thanks, ${userName}! Did you find StockSync useful today?</div>`;
+            const input = document.getElementById('chatbotInput');
             input.innerHTML = `
-                <button onclick="chatResponse('Yes, it helped a lot!')">Yes, it helped a lot!</button>
-                <button onclick="chatResponse('It was okay')">It was okay</button>
-                <button onclick="chatResponse('No, I struggled')">No, I struggled</button>
+                <button onclick="chatResponse('Yes, it helped a lot!', '${userName}', '${userEmail}')">Yes, it helped a lot!</button>
+                <button onclick="chatResponse('It was okay', '${userName}', '${userEmail}')">It was okay</button>
+                <button onclick="chatResponse('No, I struggled', '${userName}', '${userEmail}')">No, I struggled</button>
             `;
         }
 
-        function chatResponse(response) {
+        function chatResponse(response, userName, userEmail) {
+            trackBehavior("feedbackResponse", { response });
             const messages = document.getElementById('chatbotMessages');
             messages.innerHTML += `<div class="chatbot-message">You said: ${response}</div>`;
             const input = document.getElementById('chatbotInput');
@@ -581,83 +658,94 @@
             if (response.includes('helped')) {
                 messages.innerHTML += '<div class="chatbot-message">Glad to hear that! What did you like best about it?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('The charts')">The charts</button>
-                    <button onclick="chatResponse('The tips')">The tips</button>
-                    <button onclick="chatResponse('How easy it was')">How easy it was</button>
+                    <button onclick="nextFeedback('The charts', '${userName}', '${userEmail}')">The charts</button>
+                    <button onclick="nextFeedback('The tips', '${userName}', '${userEmail}')">The tips</button>
+                    <button onclick="nextFeedback('How easy it was', '${userName}', '${userEmail}')">How easy it was</button>
                 `;
             } else if (response.includes('okay')) {
                 messages.innerHTML += '<div class="chatbot-message">Thanks for sharing! What could we make better for you?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('Make it faster')">Make it faster</button>
-                    <button onclick="chatResponse('Clearer instructions')">Clearer instructions</button>
-                    <button onclick="chatResponse('Better design')">Better design</button>
+                    <button onclick="nextFeedback('Make it faster', '${userName}', '${userEmail}')">Make it faster</button>
+                    <button onclick="nextFeedback('Clearer instructions', '${userName}', '${userEmail}')">Clearer instructions</button>
+                    <button onclick="nextFeedback('Better design', '${userName}', '${userEmail}')">Better design</button>
                 `;
             } else if (response.includes('struggled')) {
                 messages.innerHTML += '<div class="chatbot-message">Sorry to hear that! What gave you trouble?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('Uploading files')">Uploading files</button>
-                    <button onclick="chatResponse('The calculations')">The calculations</button>
-                    <button onclick="chatResponse('Something else')">Something else</button>
+                    <button onclick="nextFeedback('Uploading files', '${userName}', '${userEmail}')">Uploading files</button>
+                    <button onclick="nextFeedback('The calculations', '${userName}', '${userEmail}')">The calculations</button>
+                    <button onclick="nextFeedback('Something else', '${userName}', '${userEmail}')">Something else</button>
                 `;
-            } else if (response.includes('charts') || response.includes('tips') || response.includes('easy')) {
+            }
+        }
+
+        function nextFeedback(response, userName, userEmail) {
+            trackBehavior("feedbackDetail", { response });
+            const messages = document.getElementById('chatbotMessages');
+            messages.innerHTML += `<div class="chatbot-message">You said: ${response}</div>`;
+            const input = document.getElementById('chatbotInput');
+
+            if (response.includes('charts') || response.includes('tips') || response.includes('easy')) {
                 messages.innerHTML += '<div class="chatbot-message">Nice! What new tool would help you manage inventory better?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('Sales forecasts')">Sales forecasts</button>
-                    <button onclick="chatResponse('Stock alerts')">Stock alerts</button>
-                    <button onclick="chatResponse('More reports')">More reports</button>
+                    <button onclick="submitFeedback('Sales forecasts', '${userName}', '${userEmail}')">Sales forecasts</button>
+                    <button onclick="submitFeedback('Stock alerts', '${userName}', '${userEmail}')">Stock alerts</button>
+                    <button onclick="submitFeedback('More reports', '${userName}', '${userEmail}')">More reports</button>
                 `;
             } else if (response.includes('faster') || response.includes('instructions') || response.includes('design')) {
                 messages.innerHTML += '<div class="chatbot-message">Got it! What new feature could solve your biggest challenge?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('A mobile version')">A mobile version</button>
-                    <button onclick="chatResponse('Auto updates')">Auto updates</button>
-                    <button onclick="chatResponse('Team access')">Team access</button>
+                    <button onclick="submitFeedback('A mobile version', '${userName}', '${userEmail}')">A mobile version</button>
+                    <button onclick="submitFeedback('Auto updates', '${userName}', '${userEmail}')">Auto updates</button>
+                    <button onclick="submitFeedback('Team access', '${userName}', '${userEmail}')">Team access</button>
                 `;
             } else if (response.includes('files') || response.includes('calculations') || response.includes('else')) {
                 messages.innerHTML += '<div class="chatbot-message">Let’s fix that! What would make your day easier?</div>';
                 input.innerHTML = `
-                    <button onclick="chatResponse('A help guide')">A help guide</button>
-                    <button onclick="chatResponse('Quick support')">Quick support</button>
-                    <button onclick="chatResponse('Step-by-step tips')">Step-by-step tips</button>
+                    <button onclick="submitFeedback('A help guide', '${userName}', '${userEmail}')">A help guide</button>
+                    <button onclick="submitFeedback('Quick support', '${userName}', '${userEmail}')">Quick support</button>
+                    <button onclick="submitFeedback('Step-by-step tips', '${userName}', '${userEmail}')">Step-by-step tips</button>
                 `;
-            } else {
-                submitChatResponse(response);
             }
         }
 
-        function submitChatResponse(finalResponse) {
+        function submitFeedback(finalResponse, userName, userEmail) {
+            trackBehavior("feedbackSubmitted", { response: finalResponse });
             const messages = document.getElementById('chatbotMessages');
             messages.innerHTML += '<div class="chatbot-message">Thanks a bunch! I’ll pass this to the team to make StockSync even better for you.</div>';
             document.getElementById('chatbotInput').innerHTML = '';
 
-            const feedbackData = {
-                response: finalResponse,
-                timestamp: new Date().toISOString()
-            };
-            const encodedData = btoa(JSON.stringify(feedbackData));
-            console.log('Chatbot Feedback:', encodedData);
-
-            fetch('https://script.google.com/macros/s/AKfycbwRb5mL5c9hivpQiLnrf1ZGHNZpkj3ch8zOg5xInCpbTUzhwOPLvPTTBJL9LnzR-OOZ/exec', {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ encodedData })
+            fetch(scriptUrl + "?action=saveFeedback", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ UserName: userName, Email: userEmail, Response: finalResponse })
             })
-            .then(() => {
+            .then(response => response.text())
+            .then(result => {
+                console.log(result);
                 document.getElementById('feedbackSuccess').style.display = 'block';
                 setTimeout(() => {
                     document.getElementById('feedbackSuccess').style.display = 'none';
                     closeChatbot();
                 }, 3000);
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error("Error saving feedback:", error));
         }
 
         function closeChatbot() {
+            trackBehavior("chatbotClosed", { time: new Date().toISOString() });
             document.getElementById('chatbotModal').style.display = 'none';
             document.getElementById('chatbotMessages').innerHTML = '';
             document.getElementById('chatbotInput').innerHTML = '';
         }
+
+        // Add event listeners for behavior tracking
+        document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') trackBehavior('buttonClicked', { target: e.target.textContent });
+        });
+        document.addEventListener('change', (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') trackBehavior('inputChanged', { id: e.target.id, value: e.target.value });
+        });
     </script>
 </body>
 </html>
