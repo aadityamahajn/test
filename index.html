@@ -1,43 +1,4 @@
-<script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -372,17 +333,17 @@
             <div class="input-section">
                 <div class="input-group">
                     <label for="uploadSales">Upload Sales Sheet</label>
-                    <input type="file" id="uploadSales" accept=".csv" onchange="checkInputs()">
+                    <input type="file" id="uploadSales" accept=".csv">
                     <p class="description">CSV with: stock_id, product_name, sales_amount, sales_date (max 1000 records).</p>
                 </div>
                 <div class="input-group">
                     <label for="uploadPurchases">Upload Purchase Sheet</label>
-                    <input type="file" id="uploadPurchases" accept=".csv" onchange="checkInputs()">
+                    <input type="file" id="uploadPurchases" accept=".csv">
                     <p class="description">CSV with: stock_id, product_name, purchase_amount, purchase_date (max 1000 records).</p>
                 </div>
                 <div class="input-group">
                     <label for="service_reliability">Service Reliability</label>
-                    <select id="service_reliability" onchange="checkInputs()">
+                    <select id="service_reliability">
                         <option value="1.65">Very High (95%)</option>
                         <option value="1.28" selected>High (90%)</option>
                         <option value="0.84">Moderate (80%)</option>
@@ -391,7 +352,7 @@
                 </div>
                 <div class="input-group">
                     <label for="annual_operating_days">Annual Operating Days</label>
-                    <input type="number" id="annual_operating_days" placeholder="e.g., 365" step="any" onchange="checkInputs()">
+                    <input type="number" id="annual_operating_days" placeholder="e.g., 365" step="any">
                     <p class="description">Enter the number of days you operate annually.</p>
                 </div>
             </div>
@@ -419,7 +380,6 @@
     </div>
     <script>
         let batchSize = 200;
-        let feedbackRequested = false;
 
         function safetyStock(dailySales, leadTime, stdDev, zScore) {
             return zScore * stdDev * Math.sqrt(leadTime) || 0;
@@ -601,44 +561,16 @@
             console.log('Stored Data for Training:', jsonData);
         }
 
-        function checkInputs() {
-            const salesFile = document.getElementById('uploadSales').files[0];
-            const purchaseFile = document.getElementById('uploadPurchases').files[0];
-            const serviceReliability = document.getElementById('service_reliability').value;
-            const annualOperatingDays = document.getElementById('annual_operating_days').value;
-
-            if (!feedbackRequested && (salesFile || purchaseFile || serviceReliability || annualOperatingDays)) {
-                feedbackRequested = true;
-                openChatbotWithRequest();
-            }
-        }
-
-        function openChatbotWithRequest() {
+        function openChatbot() {
             document.getElementById('chatbotModal').style.display = 'flex';
             const messages = document.getElementById('chatbotMessages');
             const input = document.getElementById('chatbotInput');
-            messages.innerHTML = '<div class="chatbot-message">Hey! I’m SyncMate, your inventory helper! As you start, could you share how we can improve StockSync for you?</div>';
+            messages.innerHTML = '<div class="chatbot-message">Hey! I’m SyncMate, here to help with your inventory. Did you find StockSync useful today?</div>';
             input.innerHTML = `
                 <button onclick="chatResponse('Yes, it helped a lot!')">Yes, it helped a lot!</button>
                 <button onclick="chatResponse('It was okay')">It was okay</button>
                 <button onclick="chatResponse('No, I struggled')">No, I struggled</button>
             `;
-        }
-
-        function openChatbot() {
-            if (!feedbackRequested) {
-                openChatbotWithRequest();
-            } else {
-                document.getElementById('chatbotModal').style.display = 'flex';
-                const messages = document.getElementById('chatbotMessages');
-                const input = document.getElementById('chatbotInput');
-                messages.innerHTML = '<div class="chatbot-message">Hey! I’m SyncMate, your inventory helper! Did you find StockSync useful today?</div>';
-                input.innerHTML = `
-                    <button onclick="chatResponse('Yes, it helped a lot!')">Yes, it helped a lot!</button>
-                    <button onclick="chatResponse('It was okay')">It was okay</button>
-                    <button onclick="chatResponse('No, I struggled')">No, I struggled</button>
-                `;
-            }
         }
 
         function chatResponse(response) {
