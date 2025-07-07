@@ -541,7 +541,6 @@
             addUserMessage(message);
             input.value = '';
 
-            // Simulate AI response
             setTimeout(() => {
                 if (message.toLowerCase().includes('feature')) {
                     addBotMessage("Thanks for your input! Which feature do you find most useful? (Analyze Inventory, Charts, etc.)");
@@ -550,20 +549,19 @@
                 } else {
                     addBotMessage("I'm here to help! Please let me know which feature you like or suggest an improvement.");
                 }
-                // Attempt to send feedback
                 fetchFeedbackData({ message: message })
                     .then(response => {
-                        console.log('Feedback sent successfully:', response);
+                        console.log('Feedback sent successfully. Response:', response);
                     })
                     .catch(error => {
-                        console.error('Fetch error for feedback data:', error);
-                        addBotMessage("Sorry, I couldn't send your feedback due to a server issue. Please try again later or check the console for details.");
+                        console.error('Fetch error details:', error);
+                        addBotMessage(`Sorry, I couldn't send your feedback due to a server issue. Error: ${error.message}. Please try again later or check the console.`);
                     });
             }, 500);
         }
 
         function fetchFeedbackData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbxp7wFi-E7aQ1pL8Wd_IEaefNlKckDu4Eg3YJF2c9Q4uhmazKG4-Lr7pvZppb094ZA-/exec', {
+            return fetch('https://script.google.com/macros/s/AKfycbwb8JlQy82LpCMO4kgY0Rz389EUZeyhIWdSNQi9sqX837KEDRgEmjwuZOEcgIfzl1yl/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 mode: 'cors',
@@ -576,7 +574,7 @@
                 return response.text();
             })
             .catch(error => {
-                console.error('Fetch error details:', error);
+                console.error('Fetch error details - Stack:', error.stack);
                 throw error;
             });
         }
