@@ -549,7 +549,7 @@
                 } else {
                     addBotMessage("I'm here to help! Please let me know which feature you like or suggest an improvement.");
                 }
-                fetchFeedbackData({ message: message })
+                fetchFeedbackData({ message: message }, 0)
                     .then(response => {
                         console.log('Feedback sent successfully. Response:', response);
                     })
@@ -560,23 +560,28 @@
             }, 500);
         }
 
-        function fetchFeedbackData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbwb8JlQy82LpCMO4kgY0Rz389EUZeyhIWdSNQi9sqX837KEDRgEmjwuZOEcgIfzl1yl/exec', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                mode: 'cors',
-                body: JSON.stringify(data)
-            })
-            .then(response => {
+        async function fetchFeedbackData(data, retryCount = 0) {
+            const maxRetries = 2;
+            try {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbwWNUyb2XizzbRYIP5YCrkJO7L4LUmBjqFKhsMqMpxjsILpb4zzVQpLPJ5As694nAvX/exec', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    mode: 'cors',
+                    body: JSON.stringify(data)
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
                 return response.text();
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Fetch error details - Stack:', error.stack);
+                if (retryCount < maxRetries) {
+                    console.log(`Retrying (${retryCount + 1}/${maxRetries})...`);
+                    await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Exponential backoff
+                    return fetchFeedbackData(data, retryCount + 1);
+                }
                 throw error;
-            });
+            }
         }
     </script>
 </body>
