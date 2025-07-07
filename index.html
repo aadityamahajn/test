@@ -39,56 +39,6 @@
         h1 i {
             color: #2b6cb0;
         }
-        .account-tab {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(to right, #4a90e2, #63b3ed);
-            color: white;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 4px 4px 0 0;
-            cursor: pointer;
-            font-size: 0.8em;
-            font-weight: 600;
-            transition: background 0.2s;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .account-tab:hover {
-            background: linear-gradient(to right, #357abd, #4299e1);
-        }
-        .account-dropdown {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 0 0 4px 4px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-            min-width: 150px;
-            z-index: 1000;
-        }
-        .account-tab:hover .account-dropdown {
-            display: block;
-        }
-        .account-dropdown button {
-            display: block;
-            width: 100%;
-            padding: 8px;
-            text-align: left;
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: #2b6cb0;
-            font-size: 0.9em;
-        }
-        .account-dropdown button:hover {
-            background-color: #f0f4ff;
-        }
         .card {
             background-color: #ffffff;
             padding: 15px;
@@ -216,49 +166,6 @@
             text-align: center;
             margin-top: 10px;
         }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-content {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            width: 300px;
-            text-align: center;
-            position: relative;
-        }
-        .modal-content input, .modal-content select {
-            width: 90%;
-            margin: 10px 0;
-        }
-        .close-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 1.5em;
-            cursor: pointer;
-            color: #4a5568;
-        }
-        .close-btn:hover {
-            color: #e53e3e;
-        }
-        .tab-buttons {
-            display: flex;
-            justify-content: space-around;
-            margin-bottom: 15px;
-        }
-        .tab-buttons button {
-            width: 45%;
-            padding: 8px;
-        }
         .chat-icon {
             position: fixed;
             bottom: 20px;
@@ -280,6 +187,65 @@
         .chat-icon:hover {
             transform: scale(1.1);
         }
+        .chat-modal {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: linear-gradient(to right, #4a90e2, #63b3ed);
+            color: white;
+            padding: 10px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f8fafc;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 70%;
+        }
+        .bot-message {
+            background-color: #e6f0fa;
+            align-self: flex-start;
+        }
+        .user-message {
+            background-color: #4a90e2;
+            color: white;
+            align-self: flex-end;
+        }
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            width: 70px;
+            padding: 8px;
+        }
         @media (max-width: 900px) {
             body { padding: 10px; max-width: 100%; padding-top: 50px; padding-bottom: 50px; }
             h1 { font-size: 1.8em; }
@@ -290,19 +256,12 @@
             .chart { width: 100%; height: 280px; }
             .chart .chart-title { font-size: 11px; }
             .chart svg { height: 250px; }
-            .account-tab { top: 10px; right: 10px; padding: 4px 8px; font-size: 0.7em; }
-            .account-dropdown { min-width: 120px; }
             .chat-icon { bottom: 10px; right: 10px; width: 40px; height: 40px; font-size: 1.2em; }
+            .chat-modal { width: 90%; right: 5%; }
         }
     </style>
 </head>
 <body>
-    <div class="account-tab">Account <i class="fas fa-caret-down"></i>
-        <div class="account-dropdown">
-            <button onclick="openModal('create')">Create Account</button>
-            <button onclick="openModal('login')">Log In</button>
-        </div>
-    </div>
     <div class="container">
         <h1><i class="fas fa-sync-alt"></i> StockSync</h1>
         <div class="card">
@@ -345,59 +304,18 @@
             </div>
         </div>
     </div>
-    <div id="accountModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeModal()">×</span>
-            <div class="tab-buttons">
-                <button id="createTabBtn" onclick="showTab('create')">Create Account</button>
-                <button id="loginTabBtn" onclick="showTab('login')">Log In</button>
-            </div>
-            <div id="create-tab">
-                <h3>Create Account</h3>
-                <input type="text" id="accountName" placeholder="Your Name" required>
-                <input type="email" id="accountEmail" placeholder="Your Email" required>
-                <input type="password" id="accountPassword" placeholder="Password" required>
-                <button onclick="createAccount()">Submit</button>
-            </div>
-            <div id="login-tab" style="display: none;">
-                <h3>Log In</h3>
-                <input type="email" id="loginEmail" placeholder="Your Email" required>
-                <input type="password" id="loginPassword" placeholder="Password" required>
-                <button onclick="logIn()">Submit</button>
-            </div>
+    <button class="chat-icon" onclick="openChatModal()"><i class="fas fa-comment"></i></button>
+    <div id="chatModal" class="chat-modal">
+        <div class="chat-header">StockSync AI Assistant</div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Type your message...">
+            <button onclick="sendMessage()">Send</button>
         </div>
     </div>
-    <div id="feedbackModal" class="modal">
-        <div class="modal-content">
-            <span class="close-btn" onclick="closeFeedbackModal()">×</span>
-            <h3>Feedback</h3>
-            <form id="feedback-form">
-                <div id="feedback-auth" style="display: none;">
-                    <input type="text" id="feedbackName" placeholder="Your Name" required>
-                    <input type="email" id="feedbackEmail" placeholder="Your Email" required>
-                </div>
-                <label>Which feature is most useful?</label>
-                <select id="feedbackFeature">
-                    <option value="Analyze Inventory">Analyze Inventory</option>
-                    <option value="Export to PDF">Export to PDF</option>
-                    <option value="Charts">Charts</option>
-                </select>
-                <label>What changes would make it more useful?</label>
-                <select id="feedbackChange">
-                    <option value="Faster Processing">Faster Processing</option>
-                    <option value="Better UI">Better UI</option>
-                    <option value="More Features">More Features</option>
-                </select>
-                <button type="button" onclick="submitFeedback()">Submit Feedback</button>
-            </form>
-        </div>
-    </div>
-    <button class="chat-icon" onclick="openFeedbackModal()"><i class="fas fa-comment"></i></button>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         let batchSize = 200;
-        let isAuthenticated = false;
 
         function safetyStock(dailySales, leadTime, stdDev, zScore) {
             return zScore * stdDev * Math.sqrt(leadTime) || 0;
@@ -583,250 +501,72 @@
             }
 
             tableHTML += '</table>';
-            tableHTML += '<button onclick="exportToPDF()" style="margin-top: 15px; width: auto;">Export to PDF</button>';
             resultsDiv.innerHTML = tableHTML + '<div class="chart-container">' + charts.join('') + '</div>';
             resultsDiv.style.display = 'block';
         }
 
-        function openModal(tab) {
-            document.getElementById('accountModal').style.display = 'flex';
-            showTab(tab);
+        function openChatModal() {
+            document.getElementById('chatModal').style.display = 'flex';
+            document.getElementById('chatInput').focus();
+            addBotMessage("Hello! I'm StockSync AI. How can I assist you today? You can tell me which feature you like most or suggest improvements.");
         }
 
-        function closeModal() {
-            document.getElementById('accountModal').style.display = 'none';
-            document.getElementById('create-tab').style.display = 'none';
-            document.getElementById('login-tab').style.display = 'none';
+        function closeChatModal() {
+            document.getElementById('chatModal').style.display = 'none';
+            document.getElementById('chatInput').value = '';
         }
 
-        function showTab(tab) {
-            if (tab === 'create') {
-                document.getElementById('create-tab').style.display = 'block';
-                document.getElementById('login-tab').style.display = 'none';
-                document.getElementById('createTabBtn').classList.add('active');
-                document.getElementById('loginTabBtn').classList.remove('active');
-            } else if (tab === 'login') {
-                document.getElementById('create-tab').style.display = 'none';
-                document.getElementById('login-tab').style.display = 'block';
-                document.getElementById('createTabBtn').classList.remove('active');
-                document.getElementById('loginTabBtn').classList.add('active');
-            }
+        function addMessage(text, isUser) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+            messageDiv.textContent = text;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
         }
 
-        function createAccount() {
-            const name = document.getElementById('accountName').value;
-            const email = document.getElementById('accountEmail').value;
-            const password = document.getElementById('accountPassword').value;
-
-            if (!name || !email || !password) {
-                alert('Please fill in all fields.');
-                return;
-            }
-
-            const data = { name, email, password };
-            fetchAccountData(data)
-                .then(result => {
-                    if (result === 'Success') {
-                        isAuthenticated = true;
-                        closeModal();
-                        alert('Account created successfully!');
-                        updateFeedbackForm();
-                    } else {
-                        alert('Account creation failed. Server returned: ' + result);
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error for account data:', error);
-                    if (error.message.includes('Failed to fetch')) {
-                        alert('Network error. Check your internet connection or the server URL.');
-                    } else {
-                        alert('Error connecting to server. Check console for details: ' + error.message);
-                    }
-                });
+        function addBotMessage(text) {
+            addMessage(text, false);
         }
 
-        function logIn() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-
-            if (!email || !password) {
-                alert('Please fill in all fields.');
-                return;
-            }
-
-            const storedData = { email: 'test@example.com', password: 'password123' };
-            if (email === storedData.email && password === storedData.password) {
-                isAuthenticated = true;
-                closeModal();
-                alert('Logged in successfully!');
-                updateFeedbackForm();
-            } else {
-                alert('Invalid email or password.');
-            }
+        function addUserMessage(text) {
+            addMessage(text, true);
         }
 
-        function exportToPDF() {
-            const { jsPDF } = window.jspdf;
-            if (!jsPDF || !window.html2canvas) {
-                alert('Required libraries (jsPDF or html2canvas) failed to load. Check your internet connection or console for errors.');
-                console.error('jsPDF or html2canvas not available');
-                return;
-            }
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
 
-            if (!isAuthenticated) {
-                openModal('login');
-                return;
-            }
+            addUserMessage(message);
+            input.value = '';
 
-            const resultsDiv = document.getElementById('results');
-            if (!resultsDiv) {
-                alert('Results section not found. Please generate results first.');
-                return;
-            }
-
-            const errorDiv = document.getElementById('error');
-            errorDiv.textContent = 'Generating PDF...';
-
-            const exportDiv = document.createElement('div');
-            exportDiv.innerHTML = resultsDiv.innerHTML.replace('<button onclick="exportToPDF()" style="margin-top: 15px; width: auto;">Export to PDF</button>', '');
-            document.body.appendChild(exportDiv);
-
-            html2canvas(exportDiv, { scale: 2, useCORS: true }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const imgWidth = 210;
-                const pageHeight = 295;
-                const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                let heightLeft = imgHeight;
-                let position = 10;
-
-                const doc = new jsPDF({
-                    orientation: 'portrait',
-                    unit: 'mm',
-                    format: 'a4'
-                });
-
-                try {
-                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-
-                    while (heightLeft > 0) {
-                        position += heightLeft - imgHeight + 10;
-                        doc.addPage();
-                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
-
-                    const pdfDataUri = doc.output('datauristring');
-                    const link = document.createElement('a');
-                    link.href = pdfDataUri;
-                    link.download = 'StockSync_Results.pdf';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
-                    errorDiv.textContent = 'PDF exported successfully!';
-                    console.log('PDF save attempted');
-                } catch (e) {
-                    errorDiv.textContent = 'Error generating PDF: ' + e.message;
-                    console.error('PDF generation error:', e);
+            // Simulate AI response
+            setTimeout(() => {
+                if (message.toLowerCase().includes('feature')) {
+                    addBotMessage("Thanks for your input! Which feature do you find most useful? (Analyze Inventory, Charts, etc.)");
+                } else if (message.toLowerCase().includes('improve') || message.toLowerCase().includes('change')) {
+                    addBotMessage("Great suggestion! What changes would make it better? (Faster Processing, Better UI, More Features, etc.)");
+                } else {
+                    addBotMessage("I'm here to help! Please let me know which feature you like or suggest an improvement.");
                 }
-
-                document.body.removeChild(exportDiv);
-            }).catch(err => {
-                errorDiv.textContent = 'Error capturing content: ' + err.message;
-                console.error('html2canvas error:', err);
-                document.body.removeChild(exportDiv);
-            });
-        }
-
-        function openFeedbackModal() {
-            if (!isAuthenticated) {
-                document.getElementById('feedback-auth').style.display = 'block';
-            } else {
-                document.getElementById('feedback-auth').style.display = 'none';
-            }
-            document.getElementById('feedbackModal').style.display = 'flex';
-            document.getElementById('feedback-form').reset();
-        }
-
-        function closeFeedbackModal() {
-            document.getElementById('feedbackModal').style.display = 'none';
-            document.getElementById('feedback-form').reset();
-        }
-
-        function updateFeedbackForm() {
-            if (isAuthenticated) {
-                document.getElementById('feedback-auth').style.display = 'none';
-            } else {
-                document.getElementById('feedback-auth').style.display = 'block';
-            }
-        }
-
-        function submitFeedback() {
-            const feature = document.getElementById('feedbackFeature').value;
-            const change = document.getElementById('feedbackChange').value;
-            let name = '';
-            let email = '';
-
-            if (!isAuthenticated) {
-                name = document.getElementById('feedbackName').value;
-                email = document.getElementById('feedbackEmail').value;
-                if (!name || !email || !feature || !change) {
-                    alert('Please fill in all fields.');
-                    return;
-                }
-            } else if (!feature || !change) {
-                alert('Please select all options.');
-                return;
-            }
-
-            const data = { feature, change };
-            if (!isAuthenticated) {
-                data.name = name;
-                data.email = email;
-            }
-            fetchFeedbackData(data)
-                .then(result => {
-                    if (result === 'Success') {
-                        closeFeedbackModal();
-                        alert('Feedback submitted successfully!');
-                    } else {
-                        alert('Feedback submission failed. Server returned: ' + result);
-                    }
-                })
-                .catch(error => {
-                    console.error('Fetch error for feedback data:', error);
-                    if (error.message.includes('Failed to fetch')) {
-                        alert('Network error. Check your internet connection or the server URL.');
-                    } else {
-                        alert('Error connecting to server. Check console for details: ' + error.message);
-                    }
-                });
-        }
-
-        function fetchAccountData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbzRr1htcZzlxudtbLbDkSgYAVrGuxdmLZk1FrX--TKoQk6jkAKtq2hZ_O0qwmD2x_XUhA/exec', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                mode: 'cors', // Explicitly set CORS mode
-                body: JSON.stringify(data)
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.text();
-            })
-            .catch(error => {
-                console.error('Fetch error for account data:', error);
-                throw error;
-            });
+                // Attempt to send feedback
+                fetchFeedbackData({ message: message })
+                    .then(response => {
+                        console.log('Feedback sent successfully:', response);
+                    })
+                    .catch(error => {
+                        console.error('Fetch error for feedback data:', error);
+                        addBotMessage("Sorry, I couldn't send your feedback due to a server issue. Please try again later or check the console for details.");
+                    });
+            }, 500);
         }
 
         function fetchFeedbackData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbyaOil6CF0DfqlEiCa3Yng74FPhFkhTgojb9HxZgYowdFlu0WoHma97g6N3HEBoFx4g/exec', {
+            return fetch('https://script.google.com/macros/s/AKfycbxp7wFi-E7aQ1pL8Wd_IEaefNlKckDu4Eg3YJF2c9Q4uhmazKG4-Lr7pvZppb094ZA-/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                mode: 'cors', // Explicitly set CORS mode
+                mode: 'cors',
                 body: JSON.stringify(data)
             })
             .then(response => {
@@ -836,7 +576,7 @@
                 return response.text();
             })
             .catch(error => {
-                console.error('Fetch error for feedback data:', error);
+                console.error('Fetch error details:', error);
                 throw error;
             });
         }
