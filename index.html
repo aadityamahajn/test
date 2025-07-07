@@ -420,12 +420,6 @@
                 return;
             }
 
-            const doc = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-
             const resultsDiv = document.getElementById('results');
             if (!resultsDiv) {
                 alert('Results section not found. Please generate results first.');
@@ -435,13 +429,24 @@
             const errorDiv = document.getElementById('error');
             errorDiv.textContent = 'Generating PDF...';
 
-            html2canvas(resultsDiv, { scale: 2, useCORS: true }).then(canvas => {
+            // Create a temporary div for export, excluding the button
+            const exportDiv = document.createElement('div');
+            exportDiv.innerHTML = resultsDiv.innerHTML.replace('<button onclick="exportToPDF()" style="margin-top: 15px; width: auto;">Export to PDF</button>', '');
+            document.body.appendChild(exportDiv);
+
+            html2canvas(exportDiv, { scale: 2, useCORS: true }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
                 const imgWidth = 210; // A4 width in mm
                 const pageHeight = 295; // A4 height in mm
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
                 let heightLeft = imgHeight;
                 let position = 10; // Margin top
+
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
 
                 try {
                     doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
@@ -467,9 +472,13 @@
                     errorDiv.textContent = 'Error generating PDF: ' + e.message;
                     console.error('PDF generation error:', e);
                 }
+
+                // Clean up
+                document.body.removeChild(exportDiv);
             }).catch(err => {
                 errorDiv.textContent = 'Error capturing content: ' + err.message;
                 console.error('html2canvas error:', err);
+                document.body.removeChild(exportDiv);
             });
         }
     </script>
