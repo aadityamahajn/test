@@ -350,7 +350,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script>
         let batchSize = 200;
-        const formUrl = 'https://forms.gle/vGfDFDcL6uM1nQzH8'; // Replace with your Google Form URL
+        const formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLScYIvaBB0L_PJYOxYDpZ1tmzGFuH2hjaChg7bpMdgevgYJ_Eg/viewform?usp=pp_url'; // Replace with your actual form response URL
 
         function safetyStock(dailySales, leadTime, stdDev, zScore) {
             return zScore * stdDev * Math.sqrt(leadTime) || 0;
@@ -583,29 +583,29 @@
         }
 
         function submitFeedback() {
-    const feedbackText = document.getElementById('feedbackText').value.trim();
-    if (!feedbackText) {
-        addMessage('Please enter some feedback before submitting.', false);
-        return;
-    }
+            const feedbackText = document.getElementById('feedbackText').value.trim();
+            if (!feedbackText) {
+                addMessage('Please enter some feedback before submitting.', false);
+                return;
+            }
 
-    const formData = new FormData();
-    formData.append('entry.123456789', 'Feature Feedback'); // Replace with actual form field IDs
-    formData.append('entry.987654321', feedbackText); // Replace with actual form field IDs
+            const formData = new FormData();
+            formData.append('entry.1941835330', 'Feature Feedback'); // Replace with your actual dropdown field ID
+            formData.append('entry.1128852283', feedbackText); // Replace with your actual text field ID
 
-    fetch(formUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formData
-    }).then(() => {
-        console.log('Submission attempted');
-        addMessage('Thank you! Your feedback has been submitted.', false);
-        setTimeout(closeFeedbackModal, 2000);
-    }).catch(error => {
-        console.error('Feedback submission error:', error);
-        addMessage('Sorry, there was an issue submitting your feedback. Please try again later.', false);
-    });
-}
+            fetch(formUrl, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: formData
+            }).then(() => {
+                console.log('Submission attempted');
+                addMessage('Thank you! Your feedback has been submitted.', false);
+                setTimeout(closeFeedbackModal, 2000);
+            }).catch(error => {
+                console.error('Feedback submission error:', error);
+                addMessage('Sorry, there was an issue submitting your feedback. Please try again later.', false);
+            });
+        }
     </script>
 </body>
 </html>
