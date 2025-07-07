@@ -632,12 +632,16 @@
                         alert('Account created successfully!');
                         updateFeedbackForm();
                     } else {
-                        alert('Account creation failed. Please try again.');
+                        alert('Account creation failed. Server returned: ' + result);
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error connecting to server. Check console for details.');
+                    console.error('Fetch error for account data:', error);
+                    if (error.message.includes('Failed to fetch')) {
+                        alert('Network error. Check your internet connection or the server URL.');
+                    } else {
+                        alert('Error connecting to server. Check console for details: ' + error.message);
+                    }
                 });
         }
 
@@ -786,22 +790,32 @@
                         closeFeedbackModal();
                         alert('Feedback submitted successfully!');
                     } else {
-                        alert('Feedback submission failed. Please try again.');
+                        alert('Feedback submission failed. Server returned: ' + result);
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Error connecting to server. Check console for details.');
+                    console.error('Fetch error for feedback data:', error);
+                    if (error.message.includes('Failed to fetch')) {
+                        alert('Network error. Check your internet connection or the server URL.');
+                    } else {
+                        alert('Error connecting to server. Check console for details: ' + error.message);
+                    }
                 });
         }
 
         function fetchAccountData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbz5JsTGa7rxsxYnIq4VyG-ydw3hHRLASQCPlpGPaS3OraNyPRgKDJhlp2CEdvtj_gNSYA/exec', {
+            return fetch('https://script.google.com/macros/s/AKfycbzRr1htcZzlxudtbLbDkSgYAVrGuxdmLZk1FrX--TKoQk6jkAKtq2hZ_O0qwmD2x_XUhA/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                mode: 'cors', // Explicitly set CORS mode
                 body: JSON.stringify(data)
             })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            })
             .catch(error => {
                 console.error('Fetch error for account data:', error);
                 throw error;
@@ -809,12 +823,18 @@
         }
 
         function fetchFeedbackData(data) {
-            return fetch('https://script.google.com/macros/s/AKfycbyktDyNutUFoR49Pr7JCYrxHeNRaIa23OZVXpP0CqL2nd8Cm-AA4zSZeuXhxHyoNade/exec', {
+            return fetch('https://script.google.com/macros/s/AKfycbyaOil6CF0DfqlEiCa3Yng74FPhFkhTgojb9HxZgYowdFlu0WoHma97g6N3HEBoFx4g/exec', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                mode: 'cors', // Explicitly set CORS mode
                 body: JSON.stringify(data)
             })
-            .then(response => response.text())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.text();
+            })
             .catch(error => {
                 console.error('Fetch error for feedback data:', error);
                 throw error;
