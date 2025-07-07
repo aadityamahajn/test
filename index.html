@@ -217,6 +217,8 @@
             </div>
         </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script>
         let batchSize = 200;
 
@@ -238,7 +240,7 @@
                 reader.onload = function(e) {
                     const text = e.target.result;
                     const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
-                    const headers = rows[0];
+                    const headers = rows[0].map(h => h.toLowerCase());
                     let data = rows.slice(1).filter(row => row.length === headers.length && row.some(cell => cell !== ''));
 
                     if (data.length > 1000) {
@@ -248,14 +250,20 @@
 
                     data = data.map(row => {
                         const obj = {};
-                        const requiredHeaders = ['stock_id', 'product_name', 'sales_amount', 'sales_date', 'purchase_amount', 'purchase_date'];
-                        headers.forEach((header, index) => {
-                            if (requiredHeaders.includes(header.toLowerCase())) {
-                                obj[header] = isNaN(row[index]) ? row[index] : parseFloat(row[index]) || null;
+                        if (headers.includes('stock_id') && headers.includes('product_name')) {
+                            obj['stock_id'] = row[headers.indexOf('stock_id')];
+                            obj['product_name'] = row[headers.indexOf('product_name')];
+                            if (headers.includes('sales_amount') && headers.includes('sales_date')) {
+                                obj['sales_amount'] = parseFloat(row[headers.indexOf('sales_amount')]) || 0;
+                                obj['sales_date'] = row[headers.indexOf('sales_date')];
                             }
-                        });
+                            if (headers.includes('purchase_amount') && headers.includes('purchase_date')) {
+                                obj['purchase_amount'] = parseFloat(row[headers.indexOf('purchase_amount')]) || 0;
+                                obj['purchase_date'] = row[headers.indexOf('purchase_date')];
+                            }
+                        }
                         return obj;
-                    });
+                    }).filter(obj => obj.stock_id && obj.product_name);
                     resolve(data);
                 };
                 reader.onerror = () => reject(new Error('Error reading file.'));
@@ -276,8 +284,12 @@
                 const batch = salesData.slice(i, i + batchSize);
                 batch.forEach(sale => {
                     if (sale.stock_id && sale.product_name) {
-                        if (!products[sale.stock_id]) products[sale.stock_id] = { name: sale.product_name, sales: [] };
-                        products[sale.stock_id].sales.push(sale.sales_amount || 0);
+                        if (!products[sale.stock_id]) {
+                            products[sale.stock_id] = { name: sale.product_name, sales: [], purchases: [] };
+                        }
+                        if (sale.sales_amount !== undefined) {
+                            products[sale.stock_id].sales.push(sale.sales_amount);
+                        }
                     }
                 });
             }
@@ -285,8 +297,12 @@
                 const batch = purchaseData.slice(i, i + batchSize);
                 batch.forEach(purchase => {
                     if (purchase.stock_id && purchase.product_name) {
-                        if (!products[purchase.stock_id]) products[purchase.stock_id] = { name: purchase.product_name, purchases: [] };
-                        products[purchase.stock_id].purchases.push(purchase.purchase_amount || 0);
+                        if (!products[purchase.stock_id]) {
+                            products[purchase.stock_id] = { name: purchase.product_name, sales: [], purchases: [] };
+                        }
+                        if (purchase.purchase_amount !== undefined) {
+                            products[purchase.stock_id].purchases.push(purchase.purchase_amount);
+                        }
                     }
                 });
             }
@@ -391,8 +407,70 @@
             }
 
             tableHTML += '</table>';
+            tableHTML += '<button onclick="exportToPDF()" style="margin-top: 15px; width: auto;">Export to PDF</button>';
             resultsDiv.innerHTML = tableHTML + '<div class="chart-container">' + charts.join('') + '</div>';
             resultsDiv.style.display = 'block';
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            if (!jsPDF || !window.html2canvas) {
+                alert('Required libraries (jsPDF or html2canvas) failed to load. Check your internet connection or console for errors.');
+                console.error('jsPDF or html2canvas not available');
+                return;
+            }
+
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const resultsDiv = document.getElementById('results');
+            if (!resultsDiv) {
+                alert('Results section not found. Please generate results first.');
+                return;
+            }
+
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = 'Generating PDF...';
+
+            html2canvas(resultsDiv, { scale: 2, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const imgWidth = 210; // A4 width in mm
+                const pageHeight = 295; // A4 height in mm
+                const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 10; // Margin top
+
+                try {
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft > 0) {
+                        position += heightLeft - imgHeight + 10; // Margin between pages
+                        doc.addPage();
+                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    const pdfDataUri = doc.output('datauristring');
+                    const link = document.createElement('a');
+                    link.href = pdfDataUri;
+                    link.download = 'StockSync_Results.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    errorDiv.textContent = 'PDF exported successfully!';
+                    console.log('PDF save attempted');
+                } catch (e) {
+                    errorDiv.textContent = 'Error generating PDF: ' + e.message;
+                    console.error('PDF generation error:', e);
+                }
+            }).catch(err => {
+                errorDiv.textContent = 'Error capturing content: ' + err.message;
+                console.error('html2canvas error:', err);
+            });
         }
     </script>
 </body>
