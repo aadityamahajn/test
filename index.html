@@ -1,0 +1,744 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockSync</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Poppins', Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 15px;
+            background-color: #f0f4ff;
+            color: #4a5568;
+            position: relative;
+            padding-top: 40px;
+            padding-bottom: 60px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        h1 {
+            text-align: center;
+            color: #2b6cb0;
+            font-size: 1.8em;
+            font-weight: 600;
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        h1 i {
+            color: #2b6cb0;
+            font-size: 1.2em;
+        }
+        .tool-description {
+            text-align: center;
+            color: #718096;
+            font-size: 0.85em;
+            margin-bottom: 10px;
+        }
+        .card {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        .input-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .input-group {
+            flex: 1 1 calc(50% - 7.5px);
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            font-weight: 600;
+            color: #1a365d;
+            font-size: 0.95em;
+            margin-bottom: 5px;
+        }
+        .description {
+            font-size: 0.75em;
+            color: #718096;
+            font-style: italic;
+            margin-top: 3px;
+        }
+        input, select, textarea {
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9em;
+            background-color: #edf2f7;
+            color: #2d3748;
+            transition: border-color 0.3s ease;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #4a90e2;
+        }
+        input::placeholder, textarea::placeholder {
+            color: #a0aec0;
+            opacity: 0.7;
+        }
+        button {
+            background: linear-gradient(to right, #4a90e2, #63b3ed);
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: background 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            background: linear-gradient(to right, #357abd, #4299e1);
+        }
+        button:disabled {
+            background: #a0aec0;
+            cursor: not-allowed;
+        }
+        .results-section {
+            margin-top: 15px;
+            display: none;
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .result-table th {
+            background: linear-gradient(to right, #f0f4ff, #e6f0fa);
+            color: #2b6cb0;
+            padding: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .result-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        .result-table .green {
+            background: linear-gradient(to right, #edf7ed, #c6f6d5);
+            color: #2f855a;
+        }
+        .result-table .yellow {
+            background: linear-gradient(to right, #fefcbf, #faf089);
+            color: #975a16;
+        }
+        .result-table .red {
+            background: linear-gradient(to right, #fed7d7, #feb2b2);
+            color: #c53030;
+        }
+        .error {
+            color: #e53e3e;
+            font-size: 0.9em;
+            text-align: center;
+            margin-top: 10px;
+        }
+        .chat-icon {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(to right, #4a90e2, #63b3ed);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: transform 0.2s;
+        }
+        .chat-icon:hover {
+            transform: scale(1.1);
+        }
+        .feedback-popup {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 200px;
+            padding: 10px;
+            background-color: #ffffff;
+            border-radius: 6px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            text-align: center;
+            font-size: 0.9em;
+            color: #2d3748;
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .chat-modal {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.2em;
+            color: #718096;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .chat-close:hover {
+            color: #e53e3e;
+        }
+        .chat-header {
+            background: linear-gradient(to right, #4a90e2, #63b3ed);
+            color: white;
+            padding: 10px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            background-color: #f8fafc;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 70%;
+        }
+        .bot-message {
+            background-color: #e6f0fa;
+            align-self: flex-start;
+        }
+        .user-message {
+            background-color: #4a90e2;
+            color: white;
+            align-self: flex-end;
+        }
+        .chat-options {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .chat-option {
+            background: #edf2f7;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.2s;
+        }
+        .chat-option:hover {
+            background: #d1e0f5;
+        }
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            background-color: #ffffff;
+            border-top: 1px solid #e2e8f0;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            width: 70px;
+            padding: 8px;
+        }
+        .template-editor {
+            display: none;
+            padding: 10px;
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .template-editor textarea {
+            width: 100%;
+            min-height: 150px;
+            resize: vertical;
+        }
+        .template-editor select {
+            margin-top: 10px;
+        }
+        .template-editor button {
+            margin-top: 10px;
+        }
+        @media (max-width: 900px) {
+            body { padding: 10px; max-width: 100%; padding-top: 30px; padding-bottom: 50px; }
+            h1 { font-size: 1.5em; }
+            .input-section { flex-direction: column; }
+            .input-group { flex: 1 1 100%; }
+            .card { padding: 10px; }
+            button { padding: 8px; }
+            .chat-icon { bottom: 10px; right: 10px; width: 40px; height: 40px; font-size: 1.2em; }
+            .feedback-popup { width: 180px; bottom: 70px; right: 10px; }
+            .chat-modal { width: 90%; right: 5%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-sync-alt"></i> StockSync</h1>
+        <div class="tool-description">A streamlined tool for inventory analysis.</div>
+        <div class="card">
+            <h2>Template Selection</h2>
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="templateSelect">Select Template</label>
+                    <select id="templateSelect">
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="retail">Retail & Wholesale</option>
+                        <option value="development">Project-Based Development</option>
+                        <option value="custom">Custom Template</option>
+                    </select>
+                    <p class="description">Choose an industry template or customize your own.</p>
+                </div>
+            </div>
+            <div id="customTemplateEditor" class="template-editor">
+                <h3>Customize Template</h3>
+                <div class="input-group">
+                    <label for="customTemplateJSON">Custom Template JSON</label>
+                    <textarea id="customTemplateJSON" placeholder='{
+    "inputs": [
+        {"id": "historicalSales", "type": "file", "label": "Historical Sales/Material Data", "description": "CSV with: stock_id, product_name, sales_amount, sales_date, quantity OR material_id, material_name, quantity_needed, delivery_date, criticality, cost", "accept": ".csv"},
+        {"id": "uploadPurchases", "type": "file", "label": "Purchase Data", "description": "CSV with: stock_id/material_id, product_name/material_name, purchase_amount, purchase_date, order_date, quantity", "accept": ".csv"}
+    ],
+    "outputs": [
+        {
+            "id": "reorder_point",
+            "label": "Reorder Point",
+            "type": "reorder_point",
+            "rules": [
+                {"condition": "value > daily_sales * 0.8", "status": "green", "insight": "Sufficient stock"},
+                {"condition": "value > daily_sales * 0.5", "status": "yellow", "insight": "Order soon"},
+                {"condition": "true", "status": "red", "insight": "Order now"}
+            ]
+        }
+    ]
+}'></textarea>
+                    <p class="description">Define one sales/material CSV, one purchase CSV, and one output. Select output type below.</p>
+                    <label for="outputType">Output Type</label>
+                    <select id="outputType">
+                        <option value="reorder_point">Reorder Point</option>
+                        <option value="safety_stock">Safety Stock</option>
+                        <option value="wip_completion">WIP Completion Time</option>
+                        <option value="demand_forecast">Demand Forecast</option>
+                        <option value="turnover_ratio">Inventory Turnover Ratio</option>
+                        <option value="dio">Days Inventory Outstanding</option>
+                        <option value="material_availability">Material Availability</option>
+                        <option value="completion_risk">Project Completion Risk</option>
+                        <option value="cost_overrun_risk">Cost Overrun Risk</option>
+                    </select>
+                    <p class="description">Supported variables in rules: value, daily_sales, lead_time, std_dev, wip_percentage, seasonality_factor, project_duration, quantity_needed, current_stock, total_cost, budget.</p>
+                    <button id="saveTemplateBtn">Save Custom Template</button>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>Data Input</h2>
+            <div id="inputSection" class="input-section"></div>
+            <button id="calculateBtn">Analyze Inventory</button>
+            <div id="results" class="results-section"></div>
+            <div id="error" class="error"></div>
+        </div>
+        <div class="card">
+            <h2>Example Workflow & Output</h2>
+            <div class="example">
+                <h3>Sample Input (Manufacturing Template)</h3>
+                <p><strong>Historical Sales CSV:</strong><br>stock_id,product_name,sales_amount,sales_date,quantity<br>M001,Gearbox,7800,2025-06-01,18<br>M002,Bearing,3300,2025-06-03,30</p>
+                <p><strong>Purchase CSV:</strong><br>stock_id,product_name,purchase_amount,purchase_date,order_date,quantity<br>M001,Gearbox,6200,2025-06-02,2025-05-25,22<br>M002,Bearing,2500,2025-06-04,2025-05-28,35</p>
+                <p><strong>Input:</strong><br>WIP Percentage: 30%</p>
+                <h3>Sample Input (Retail & Wholesale Template)</h3>
+                <p><strong>Historical Sales CSV:</strong><br>stock_id,product_name,sales_amount,sales_date,quantity<br>R001,Smartphone,46000,2025-06-03,48<br>R002,Laptop,75000,2025-06-01,22</p>
+                <p><strong>Purchase CSV:</strong><br>stock_id,product_name,purchase_amount,purchase_date,order_date,quantity<br>R001,Smartphone,38000,2025-06-02,2025-05-28,55<br>R002,Laptop,60000,2025-06-03,2025-05-29,28</p>
+                <p><strong>Input:</strong><br>Seasonality Factor: 10%</p>
+                <h3>Sample Input (Project-Based Development Template)</h3>
+                <p><strong>Material CSV:</strong><br>material_id,material_name,quantity_needed,delivery_date,criticality,cost<br>D001,Solar Panel,110,2025-08-06,90,12500<br>D002,Steel Beam,60,2025-08-02,85,8500</p>
+                <p><strong>Purchase CSV:</strong><br>material_id,material_name,purchase_amount,purchase_date,order_date,quantity<br>D001,Solar Panel,11000,2025-06-02,2025-05-24,120<br>D002,Steel Beam,8000,2025-06-04,2025-05-25,70</p>
+                <p><strong>Input:</strong><br>Project Duration: 180 days</p>
+                <h3>Expected Output</h3>
+                <p>Table with metrics (e.g., Reorder Point, Material Availability).</p>
+                <table class="result-table">
+                    <tr>
+                        <th>Stock/Material ID</th>
+                        <th>Product/Material Name</th>
+                        <th>Metric</th>
+                    </tr>
+                    <tr>
+                        <td>M001/D001</td>
+                        <td>Gearbox/Solar Panel</td>
+                        <td class="yellow">45.32<br>Order soon to avoid shortages.</td>
+                    </tr>
+                </table>
+                <p><em>Note: Colors indicate status: green (optimal), yellow (caution), red (urgent).</em></p>
+                <h3>Considerations</h3>
+                <ul>
+                    <li><strong>Complete CSV:</strong> Ensure all required columns are included.</li>
+                    <li><strong>Date Format:</strong> Use YYYY-MM-DD.</li>
+                    <li><strong>Template:</strong> Match template to your business.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <button class="chat-icon" id="chatIcon"><i class="fas fa-comment"></i></button>
+    <div id="feedbackPopup" class="feedback-popup">Click the chat icon to share your feedback!</div>
+    <div id="feedbackModal" class="chat-modal">
+        <div class="chat-header">
+            StockSync Assistant
+            <span class="chat-close" id="chatClose">×</span>
+        </div>
+        <div class="chat-messages" id="feedbackMessages"></div>
+        <div id="feedbackOptions" class="chat-options"></div>
+        <div class="chat-input" id="feedbackInput" style="display: none;">
+            <input type="text" id="feedbackText" placeholder="Enter your feedback...">
+            <button id="submitFeedbackBtn">Send</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        const templates = {
+            manufacturing: {
+                inputs: [
+                    { id: 'historicalSales', type: 'file', label: 'Historical Sales Data', description: 'CSV with: stock_id, product_name, sales_amount, sales_date, quantity (max 1000 records).', accept: '.csv' },
+                    { id: 'uploadPurchases', type: 'file', label: 'Purchase Data', description: 'CSV with: stock_id, product_name, purchase_amount, purchase_date, order_date, quantity (max 1000 records).', accept: '.csv' },
+                    { id: 'wip_percentage', type: 'number', label: 'WIP Percentage (%)', placeholder: 'e.g., 30', description: 'Percentage of inventory in work-in-process.' }
+                ],
+                outputs: [
+                    { id: 'reorder_point', label: 'Reorder Point', calculate: (data) => reorderPoint(data.daily_sales, data.lead_time, data.safety_stock, data.wip_percentage, data.reorder_threshold), rules: [
+                        { condition: (value, data) => value > data.daily_sales * (data.reorder_threshold / 100), status: 'green', insight: 'Sufficient stock.' },
+                        { condition: (value, data) => value > data.daily_sales * 0.5, status: 'yellow', insight: 'Order soon to avoid shortages.' },
+                        { condition: () => true, status: 'red', insight: 'Order now to avoid stockouts.' }
+                    ] },
+                    { id: 'safety_stock', label: 'Safety Stock', calculate: (data) => data.safety_stock * (1 + data.lead_time_variability / 10) * (1 + data.overhead_rate / 100), rules: [
+                        { condition: (value, data) => value > data.std_dev * 2, status: 'green', insight: 'Safe buffer.' },
+                        { condition: (value, data) => value > data.std_dev, status: 'yellow', insight: 'Increase buffer.' },
+                        { condition: () => true, status: 'red', insight: 'Buffer too low.' }
+                    ] }
+                ]
+            },
+            retail: {
+                inputs: [
+                    { id: 'historicalSales', type: 'file', label: 'Historical Sales Data', description: 'CSV with: stock_id, product_name, sales_amount, sales_date, quantity (max 1000 records).', accept: '.csv' },
+                    { id: 'uploadPurchases', type: 'file', label: 'Purchase Data', description: 'CSV with: stock_id, product_name, purchase_amount, purchase_date, order_date, quantity (max 1000 records).', accept: '.csv' },
+                    { id: 'seasonality_factor', type: 'number', label: 'Seasonality Factor (%)', placeholder: 'e.g., 10', description: 'Demand fluctuation due to seasonality.' }
+                ],
+                outputs: [
+                    { id: 'demand_forecast', label: 'Demand Forecast', calculate: (data) => data.daily_sales * (1 + data.sales_trend * 0.1) * (1 + data.seasonality_factor / 100) * (1 - data.shrinkage_rate / 100) * data.forecast_period, rules: [
+                        { condition: (value, data) => value < data.daily_sales * data.forecast_period * 0.8, status: 'green', insight: 'Stable demand.' },
+                        { condition: (value, data) => value < data.daily_sales * data.forecast_period * 1.2, status: 'yellow', insight: 'Moderate demand growth.' },
+                        { condition: () => true, status: 'red', insight: 'Demand spike, plan stock.' }
+                    ] },
+                    { id: 'turnover_ratio', label: 'Inventory Turnover Ratio', calculate: (data) => data.daily_sales / (data.total_quantity / data.days_active), rules: [
+                        { condition: (value) => value > 5, status: 'green', insight: 'Efficient inventory.' },
+                        { condition: (value) => value > 2, status: 'yellow', insight: 'Monitor stock.' },
+                        { condition: () => true, status: 'red', insight: 'Risk of obsolescence.' }
+                    ] }
+                ]
+            },
+            development: {
+                inputs: [
+                    { id: 'historicalSales', type: 'file', label: 'Material Data', description: 'CSV with: material_id, material_name, quantity_needed, delivery_date, criticality, cost (max 1000 records).', accept: '.csv' },
+                    { id: 'uploadPurchases', type: 'file', label: 'Purchase Data', description: 'CSV with: material_id, material_name, purchase_amount, purchase_date, order_date, quantity (max 1000 records).', accept: '.csv' },
+                    { id: 'project_duration', type: 'number', label: 'Project Duration (days)', placeholder: 'e.g., 180', description: 'Total project duration.' }
+                ],
+                outputs: [
+                    { id: 'material_availability', label: 'Material Availability (%)', calculate: (data) => (data.current_stock / data.quantity_needed) * 100, rules: [
+                        { condition: (value, data) => value >= data.criticality_threshold, status: 'green', insight: 'Sufficient materials.' },
+                        { condition: (value, data) => value >= data.criticality_threshold * 0.7, status: 'yellow', insight: 'Low stock, order soon.' },
+                        { condition: () => true, status: 'red', insight: 'Critical shortage.' }
+                    ] },
+                    { id: 'completion_risk', label: 'Project Completion Risk (%)', calculate: (data) => (data.lead_time_components / data.project_duration) * 100, rules: [
+                        { condition: (value) => value < 10, status: 'green', insight: 'Low risk of delays.' },
+                        { condition: (value) => value < 20, status: 'yellow', insight: 'Monitor procurement.' },
+                        { condition: () => true, status: 'red', insight: 'High risk, expedite procurement.' }
+                    ] }
+                ]
+            }
+        };
+
+        let batchSize = 200;
+        let customTemplate = { inputs: [], outputs: [] };
+
+        function safetyStock(dailySales, leadTime, stdDev, safetyStockMultiplier) {
+            return (safetyStockMultiplier || 1.5) * stdDev * Math.sqrt(leadTime) || 0;
+        }
+
+        function reorderPoint(dailySales, leadTime, safetyStock, wipPercentage, reorderThreshold) {
+            return (dailySales * leadTime * (1 + (wipPercentage || 0) / 100) * (reorderThreshold || 0.8)) + safetyStock || 0;
+        }
+
+        function parseCondition(condition, value, data) {
+            try {
+                const supportedVars = ['value', 'daily_sales', 'lead_time', 'std_dev', 'wip_percentage', 'seasonality_factor', 'project_duration', 'quantity_needed', 'current_stock', 'total_cost', 'budget', 'days_active', 'total_quantity'];
+                let expr = condition.replace(/\bvalue\b/g, value);
+                supportedVars.forEach(varName => {
+                    if (varName !== 'value') {
+                        expr = expr.replace(new RegExp(`\\b${varName}\\b`, 'g'), data[varName] || 0);
+                    }
+                });
+                if ((expr.match(/\(/g) || []).length !== (expr.match(/\)/g) || []).length) {
+                    console.error('Unbalanced parentheses in condition:', expr);
+                    return false;
+                }
+                const operators = { '>': (a, b) => a > b, '<': (a, b) => a < b, '>=': (a, b) => a >= b, '<=': (a, b) => a <= b, '==': (a, b) => a == b };
+                const match = expr.match(/([\d.]+|\w+)\s*(>|>=|<|<=|==)\s*([\d.]+|\w+)/);
+                if (match) {
+                    let [, left, op, right] = match;
+                    left = isNaN(parseFloat(left)) ? data[left] || 0 : parseFloat(left);
+                    right = isNaN(parseFloat(right)) ? data[right] || 0 : parseFloat(right);
+                    return operators[op](left, right);
+                }
+                if (condition === 'true') return true;
+                console.error('Invalid condition format:', condition);
+                return false;
+            } catch (e) {
+                console.error('Error parsing condition:', condition, e);
+                return false;
+            }
+        }
+
+        function cleanData(data, template) {
+            console.log('Cleaning data for template:', template === templates.development ? 'development' : 'other', 'Data:', data);
+            return data.map(row => {
+                const cleaned = { ...row };
+                Object.keys(row).forEach(key => {
+                    if (key.includes('amount') || key.includes('quantity') || key.includes('criticality') || key.includes('cost')) {
+                        cleaned[key] = isNaN(parseFloat(row[key])) ? 0 : parseFloat(row[key]);
+                    }
+                    if (key.includes('date') && !/^\d{4}-\d{2}-\d{2}$/.test(row[key])) {
+                        cleaned[key] = '';
+                    }
+                });
+                return cleaned;
+            }).filter(row => (row.stock_id || row.material_id) && (row.product_name || row.material_name));
+        }
+
+        function processCSVFile(file) {
+            return new Promise((resolve, reject) => {
+                console.log('Processing CSV file:', file.name);
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const text = e.target.result;
+                    const rows = text.split('\n').map(row => row.split(',').map(cell => cell.trim()));
+                    const headers = rows[0].map(h => h.toLowerCase());
+                    let data = rows.slice(1).filter(row => row.length === headers.length && row.some(cell => cell !== ''));
+
+                    if (data.length > 1000) {
+                        reject(new Error('Upload limit exceeded. Maximum 1000 records allowed.'));
+                        return;
+                    }
+
+                    data = data.map(row => {
+                        const obj = {};
+                        headers.forEach((header, idx) => {
+                            obj[header] = row[idx];
+                        });
+                        return obj;
+                    });
+                    resolve(data);
+                };
+                reader.onerror = () => reject(new Error('Error reading file.'));
+                reader.readAsText(file);
+            });
+        }
+
+        async function preprocessData(data1, data2, template) {
+            console.log('Preprocessing data... Data1 length:', data1?.length, 'Data2 length:', data2?.length);
+            if (!data1?.length && !data2?.length) {
+                console.error('No data provided for preprocessing.');
+                return null;
+            }
+
+            data1 = cleanData(data1 || [], template);
+            data2 = data2 ? cleanData(data2, template) : [];
+
+            const products = {};
+            const dates = data1.map(item => new Date(item.sales_date || item.delivery_date)).filter(d => !isNaN(d)).sort((a, b) => a - b);
+            const daysActive = dates.length ? (dates[dates.length - 1] - dates[0]) / (1000 * 60 * 60 * 24) || 1 : 1;
+            const forecastPeriod = template === templates.development ? 90 : 30;
+            const safetyStockMultiplier = template === templates.development ? 1.2 : 1.5;
+            const reorderThreshold = template === templates.development ? 0.75 : 0.8;
+
+            const inputs = template.inputs.reduce((acc, input) => {
+                if (input.type !== 'file') {
+                    const value = document.getElementById(input.id)?.value;
+                    acc[input.id] = value ? parseFloat(value) : (input.id === 'wip_percentage' ? 30 : input.id === 'project_duration' ? 180 : input.id === 'seasonality_factor' ? 10 : 0);
+                    console.log(`Input ${input.id}:`, acc[input.id]);
+                }
+                return acc;
+            }, {});
+
+            const isDevelopment = template === templates.development;
+            const idKey = isDevelopment ? 'material_id' : 'stock_id';
+            const nameKey = isDevelopment ? 'material_name' : 'product_name';
+
+            // Derive additional parameters from CSV
+            let leadTimeVariability = 0, overheadRate = 0.2, shrinkageRate = 0.02, criticalityThreshold = 0.8, leadTimeComponents = 30;
+            if (data2) {
+                const leadTimes = data2.map(p => {
+                    const orderDate = new Date(p.order_date);
+                    const purchaseDate = new Date(p.purchase_date);
+                    return (purchaseDate - orderDate) / (1000 * 60 * 60 * 24);
+                }).filter(lt => !isNaN(lt) && lt >= 0);
+                leadTimeVariability = leadTimes.length > 1 ? Math.sqrt(leadTimes.reduce((sum, lt) => sum + Math.pow(lt - leadTimes.reduce((s, l) => s + l, 0) / leadTimes.length, 2), 0) / leadTimes.length) : 2;
+                const totalPurchaseValue = data2.reduce((sum, p) => sum + (p.purchase_amount * p.quantity || 0), 0);
+                const totalSalesValue = data1.reduce((sum, s) => sum + ((s.sales_amount || s.cost) * (s.quantity || s.quantity_needed) || 0), 0);
+                overheadRate = totalSalesValue ? totalPurchaseValue / totalSalesValue : 0.2;
+                const expected = data1.reduce((sum, s) => sum + (s.quantity || s.quantity_needed || 0), 0);
+                const actual = data2.reduce((sum, p) => sum + (p.quantity || 0), 0);
+                shrinkageRate = expected ? Math.min((expected - actual) / expected, 0.1) : 0.02;
+            }
+            if (isDevelopment && data1) {
+                const criticalities = data1.map(d => parseFloat(d.criticality) || 0).filter(c => c > 0);
+                criticalityThreshold = criticalities.length ? criticalities.reduce((sum, c) => sum + c, 0) / criticalities.length / 100 : 0.8;
+                const leadTimes = data2 ? data2.map(d => {
+                    const orderDate = new Date(d.order_date);
+                    const purchaseDate = new Date(d.purchase_date);
+                    return (purchaseDate - orderDate) / (1000 * 60 * 60 * 24);
+                }).filter(lt => !isNaN(lt) && lt >= 0) : [];
+                leadTimeComponents = leadTimes.length ? leadTimes.reduce((sum, lt) => sum + lt, 0) / leadTimes.length : 30;
+            }
+
+            for (let i = 0; i < data1.length; i += batchSize) {
+                const batch = data1.slice(i, i + batchSize);
+                batch.forEach(item => {
+                    if (item[idKey] && item[nameKey]) {
+                        if (!products[item[idKey]]) {
+                            products[item[idKey]] = { name: item[nameKey], amounts: [], quantities: [], secondary: [], secondaryQuantities: [], costs: [] };
+                        }
+                        if (isDevelopment) {
+                            if (item.quantity_needed !== undefined && item.criticality !== undefined && item.cost !== undefined) {
+                                products[item[idKey]].quantities.push(item.quantity_needed);
+                                products[item[idKey]].amounts.push(item.criticality);
+                                products[item[idKey]].costs.push(item.cost);
+                            }
+                        } else {
+                            if (item.sales_amount !== undefined && item.quantity !== undefined) {
+                                products[item[idKey]].amounts.push(item.sales_amount);
+                                products[item[idKey]].quantities.push(item.quantity);
+                            }
+                        }
+                    }
+                });
+            }
+            if (data2) {
+                for (let i = 0; i < data2.length; i += batchSize) {
+                    const batch = data2.slice(i, i + batchSize);
+                    batch.forEach(item => {
+                        if (item[idKey] && item[nameKey]) {
+                            if (!products[item[idKey]]) {
+                                products[item[idKey]] = { name: item[nameKey], amounts: [], quantities: [], secondary: [], secondaryQuantities: [], costs: [] };
+                            }
+                            if (item.purchase_amount !== undefined && item.quantity !== undefined) {
+                                products[item[idKey]].secondary.push(item.purchase_amount);
+                                products[item[idKey]].secondaryQuantities.push(item.quantity);
+                            }
+                        }
+                    });
+                }
+            }
+
+            const processedData = {};
+            for (const [itemId, data] of Object.entries(products)) {
+                if (isDevelopment) {
+                    const totalQuantities = data.quantities.reduce((sum, val) => sum + val, 0) || 1;
+                    const totalCost = data.costs.reduce((sum, val) => sum + val, 0) || 0;
+                    const currentStock = data.secondaryQuantities.reduce((sum, val) => sum + val, 0) || 0;
+                    processedData[itemId] = {
+                        material_name: data.name,
+                        quantity_needed: totalQuantities,
+                        current_stock: currentStock,
+                        total_cost: totalCost,
+                        criticality_threshold: criticalityThreshold,
+                        project_duration: inputs.project_duration || 180,
+                        lead_time_components: leadTimeComponents,
+                        budget: totalCost * 1.2,
+                        safety_stock: 0 // Placeholder, not used
+                    };
+                } else {
+                    const totalSalesValue = data.amounts.reduce((sum, val, idx) => sum + (val * data.quantities[idx] || 0), 0);
+                    const totalQuantities = data.quantities.reduce((sum, val) => sum + val, 0) || 1;
+                    const dailySales = totalSalesValue / (daysActive * totalQuantities) || 0;
+                    const stdDev = data.quantities.length > 1 ? Math.sqrt(data.quantities.map((q, idx) => Math.pow(data.amounts[idx] * q - dailySales, 2)).reduce((sum, val) => sum + val, 0) / data.quantities.length) / Math.sqrt(daysActive) : dailySales * 0.2 || 0;
+                    const purchaseRecords = data2 ? data2.filter(p => p[idKey] === itemId) : [];
+                    const leadTimes = purchaseRecords.map(p => {
+                        const orderDate = new Date(p.order_date);
+                        const purchaseDate = new Date(p.purchase_date);
+                        return (purchaseDate - orderDate) / (1000 * 60 * 60 * 24);
+                    }).filter(lt => !isNaN(lt) && lt >= 0);
+                    const leadTime = leadTimes.length ? Math.round(leadTimes.reduce((sum, lt) => sum + lt, 0) / leadTimes.length) : 7;
+                    const salesTrend = data.amounts.length > 3 ? (data.amounts[data.amounts.length - 1] - data.amounts[0]) / data.amounts.length
